@@ -112,7 +112,11 @@
         </el-pagination>
       </div>
     </el-card>
-    <el-dialog title="新增图文" :visible.sync="dialogTableVisible" fullscreen>
+    <el-dialog
+      :title="isEdit ? '编辑' : '新增图文'"
+      :visible.sync="dialogTableVisible"
+      fullscreen
+    >
       <el-form
         :model="ruleForm"
         :rules="rules"
@@ -128,12 +132,12 @@
         </el-form-item>
         <el-form-item label="试看内容" prop="tryLook">
           <div style="width: 700px">
-            <editText v-model='ruleForm.tryLook'></editText>
+            <editText v-model="ruleForm.tryLook"></editText>
           </div>
         </el-form-item>
         <el-form-item label="课程内容" prop="classText">
           <div style="width: 700px">
-            <editText v-model='ruleForm.classText'></editText>
+            <editText v-model="ruleForm.classText"></editText>
           </div>
         </el-form-item>
         <el-form-item label="课程价格">
@@ -147,8 +151,8 @@
           <el-radio v-model="ruleForm.radio" label="1">上架</el-radio>
           <el-radio v-model="ruleForm.radio" label="0">下架</el-radio>
         </el-form-item>
-        <el-form-item style="float:right;padding:25px 0;">
-          <el-button>取消</el-button>  
+        <el-form-item style="float: right; padding: 25px 0">
+          <el-button @click="handelClick">取消</el-button>
           <el-button type="primary" @click="onSumit">提交</el-button>
         </el-form-item>
       </el-form>
@@ -156,7 +160,12 @@
   </div>
 </template>
 <script>
-import { fetchList, updateMedia, deleteMedia } from "../../api/media";
+import {
+  fetchList,
+  updateMedia,
+  deleteMedia,
+  createMedia,
+} from "../../api/media";
 import upLoad from "../components/upLoad";
 import editText from "../../components/Tinymce/index";
 export default {
@@ -172,6 +181,7 @@ export default {
           label: "已下架",
         },
       ],
+      isEdit: false,
       input: "",
       value: "",
       tableData: [],
@@ -183,14 +193,11 @@ export default {
         title: "",
         num: 1,
         radio: "1",
-        tryLook:'',
-        classText:''
+        tryLook: "",
+        classText: "",
       },
       rules: {
-        title: [
-          { required: true, message: "请输入标题", trigger: "blur" },
-          { min: 3, max: 5, message: "长度在 3 到 5 个字符", trigger: "blur" },
-        ],
+        title: [{ required: true, message: "请输入标题", trigger: "blur" }],
         tryLook: [
           { required: true, message: "请输入试看内容", trigger: "blur" },
         ],
@@ -209,7 +216,7 @@ export default {
       let res = await fetchList(query);
       this.tableData = res.data.items;
       this.total = res.data.total;
-      console.log(res)
+      console.log(res);
     },
     handleSizeChange(val) {
       this.pageSize = val;
@@ -222,6 +229,15 @@ export default {
     },
     handleEdit(index, row) {
       console.dir(row);
+      this.isEdit = true;
+      this.dialogTableVisible = true;
+      this.ruleForm = {
+        title: row.title,
+        num: row.t_price,
+        radio: JSON.stringify(row.status),
+        tryLook: row.try,
+        classText: row.content,
+      };
     },
     async handleClick(index, row) {
       let res = await updateMedia({ id: row.id });
@@ -262,10 +278,107 @@ export default {
     },
     addMedail() {
       this.dialogTableVisible = true;
+      this.isEdit = false
+      this.ruleForm = {
+            title: "",
+            num: 1,
+            radio: "1",
+            tryLook: "",
+            classText: "",
+          };
     },
-    onSumit(){
-        console.dir(this.ruleForm)
-    }
+    handelClick() {
+      this.dialogTableVisible = false;
+    },
+    async onSumit() {
+      if (!this.isEdit) {
+        let obj = {
+          id: 231,
+          title: this.ruleForm.title,
+          status: this.ruleForm.radio * 1,
+          t_price: this.ruleForm.num * 1,
+          created_time: this.getNowFormatDate(),
+          try: this.ruleForm.tryLook,
+          content: this.ruleForm.content,
+          cover: "http://dummyimage.com/200x100",
+          sub_count: 55,
+        };
+        let res = await createMedia(obj);
+        if (res.data === "success") {
+          this.tableData.unshift(obj);
+          this.dialogTableVisible = false;
+          this.ruleForm = {
+            title: "",
+            num: 1,
+            radio: "1",
+            tryLook: "",
+            classText: "",
+          };
+          this.$message({
+            type: "success",
+            message: "数据添加成功!",
+          });
+        }
+      } else {
+        let obj = {
+          id: 231,
+          title: this.ruleForm.title,
+          status: this.ruleForm.radio * 1,
+          t_price: this.ruleForm.num * 1,
+          created_time: this.getNowFormatDate(),
+          try: this.ruleForm.tryLook,
+          content: this.ruleForm.content,
+          cover: "http://dummyimage.com/200x100",
+          sub_count: 55,
+        };
+        let res = await updateMedia(obj);
+        if (res.data === "success") {
+          this.dialogTableVisible = false;
+          this.ruleForm = {
+            title: "",
+            num: 1,
+            radio: "1",
+            tryLook: "",
+            classText: "",
+          };
+          this.$message({
+            type: "success",
+            message: "修改数据成功!",
+          });
+        }
+        this.isEdit = false;
+      }
+    },
+    //获取当前时间并格式化
+    getNowFormatDate() {
+      let date = new Date();
+      let seperator1 = "."; //年月日之间的分隔
+      let seperator2 = ":"; //时分秒之间的分隔
+      let month =
+        date.getMonth() + 1 < 10
+          ? "0" + (date.getMonth() + 1)
+          : date.getMonth() + 1; //获取月,如果小于10,前面补个0
+      let strDate = date.getDate() < 10 ? "0" + date.getDate() : date.getDate(); //获取日,如果小于10,前面补个0
+      let strHours =
+        date.getHours() < 10 ? "0" + date.getHours() : date.getHours(); //获取小时,如果小于10,前面补个0
+      let strMinutes =
+        date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes(); //获取分,如果小于10,前面补个0
+      let strSeconds =
+        date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds(); //获取秒,如果小于10,前面补个0
+      let currentdate =
+        date.getFullYear() +
+        seperator1 +
+        month +
+        seperator1 +
+        strDate +
+        " " +
+        strHours +
+        seperator2 +
+        strMinutes +
+        seperator2 +
+        strSeconds; //拼接一下
+      return currentdate; //返回
+    },
   },
   mounted() {
     this.getList();
